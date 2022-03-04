@@ -1,0 +1,113 @@
+template <typename T>
+Linear::UpperTriangular<double> Linear::Matrix<T>::getUpperTriangularForm() const {
+    Linear::Matrix<double> triangular(_rows, _columns);
+    for (size_t i  = 0; i < _rows; ++i) {
+        for (size_t j = 0; j < _columns; ++j) {
+            triangular.At(i, j) = static_cast<double>(Sel(i, j));
+        }
+    }
+    int swapsCount = 0, fakeSwaps = 0;
+    for (size_t i = 0; i < _columns && swapsCount < _rows; ++i) {
+        double max = triangular.Sel(swapsCount, i);
+        size_t maxIndex = swapsCount;
+        for (size_t row = swapsCount + 1; row < _rows; ++row) {
+            if ((triangular.Sel(row, i) != 0) && ((max == 0) || (triangular.Sel(row, i) > max))) {
+                max = triangular.Sel(row, i);
+                maxIndex = row;
+            }
+        }
+
+        if (max == 0) continue;
+
+        triangular.swapRows(maxIndex, swapsCount++);
+        if (maxIndex == swapsCount - 1) ++fakeSwaps;
+        for (size_t j = swapsCount; j < _rows; ++j) {
+            double q = triangular.Sel(j, i) / triangular.Sel(swapsCount - 1, i);
+            for (size_t k = 0; k < _columns; ++k) {
+                triangular.At(j, k) -= triangular.Sel(swapsCount - 1, k) * q;
+                if (fabs(triangular.Sel(j, k)) < Linear::epsilon) triangular.At(j, k) = T(0);
+            }
+        }
+    }
+
+    return  Linear::UpperTriangular<double> ((pow(-1, swapsCount - fakeSwaps) * triangular).getExplicit());
+}
+
+
+size_t rank = Matrix<T>::_rows;
+    for (size_t i = Matrix<T>::_rows; i > 0; --i) {
+        for (size_t j = 0; j < Matrix<T>::_columns; ++j) {
+            if (fabs(Matrix<T>::Sel(i - 1, j)) > Linear::epsilon) return rank;
+        }
+        --rank;
+    }
+
+    return rank;
+
+
+auto det = getUpperTriangularForm().Determinant();
+    if (det == 0)
+        throw Linear::ZeroDeterminant("Determinant equals to zero. Matrix cannot be reversed");
+
+    Linear::Matrix<double> big_matrix(_rows, _columns * 2);
+
+    for (size_t i = 0; i < _rows; ++i) {
+        for (size_t j = 0; j < _rows; ++j) {
+            big_matrix.At(i, j) = Sel(i, j);
+        }
+    };
+
+    for (size_t i = 0; i < _columns; ++i) {
+        big_matrix.At(i, _columns + i) = 1;
+    }
+
+
+    int swapsCount = 0;
+    for (size_t i = 0; i < _columns && swapsCount < _rows; ++i) {
+        double max = big_matrix.Sel(swapsCount, i);
+        size_t maxIndex = swapsCount;
+
+        for (size_t row = swapsCount + 1; row < _rows; ++row) {
+            if ((big_matrix.Sel(row, i) != 0) && ((max == 0) || (big_matrix.Sel(row, i) > max))) {
+                max = big_matrix.Sel(row, i);
+                maxIndex = row;
+            }
+        }
+
+        if (max == 0) continue;
+
+        big_matrix.swapRows(maxIndex, swapsCount++);
+
+        for (size_t j = swapsCount; j < _rows; ++j) {
+            double q = big_matrix.Sel(j, i) / big_matrix.Sel(swapsCount - 1, i);
+            for (size_t k = 0; k < _columns * 2; ++k) {
+                big_matrix.At(j, k) -= big_matrix.Sel(swapsCount - 1, k) * q;
+                if (fabs(big_matrix.Sel(j, k)) < Linear::epsilon) big_matrix.At(j, k) = 0;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < _rows; ++i) {
+        double general = big_matrix.Sel(i, i);
+        for (size_t j = i; j < _columns * 2; ++j) {
+            big_matrix.At(i, j) /= general;
+        }
+
+        for (size_t j = i; j > 0; --j) {
+            double q = big_matrix.Sel(j - 1, i);
+            for (size_t k = i; k < _columns * 2; ++k) {
+                big_matrix.At(j - 1, k) -= q * big_matrix.Sel(i, k);
+                if (fabs(big_matrix.Sel(j - 1, k)) < Linear::epsilon) big_matrix.At(j - 1, k) = 0;
+            }
+        }
+    }
+
+    Linear::Matrix<double> result(_rows, _columns);
+
+    for (size_t i = 0; i < _rows; ++i) {
+        for (size_t j = _columns; j < _columns * 2; ++j) {
+            result.At(i, j - _columns) = big_matrix.Sel(i, j);
+        }
+    }
+
+    return result;
